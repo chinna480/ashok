@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ashok Transport Form Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Telugu:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --paper:#ffffff;
+    --ink:#1a1a1a;
+    --seal:#8a2b2b;
+    --seal-dark:#6e2020;
+    --line:#8c8c8c;
+    --panel:#f3efe3;
+    --accent:#3d5a3d;
+    --accent-soft:#e9ede4;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Inter',sans-serif;
+    background:linear-gradient(180deg,#eef0e6,#e2e6d6);
+    color:var(--ink);
+    min-height:100vh;
+    padding:32px 20px 60px;
+  }
+  h1{font-size:22px;letter-spacing:.3px;margin:0 0 4px;}
+  .sub{color:#5b6355;font-size:13.5px;margin:0 0 28px;}
+  .wrap{
+    max-width:1220px;margin:0 auto;
+    display:grid;grid-template-columns:360px 1fr;gap:28px;align-items:start;
+  }
+  @media (max-width:960px){.wrap{grid-template-columns:1fr;}}
+
+  /* ---- form panel ---- */
+  .form-card{
+    background:#fff;border:1px solid #ded7bf;border-radius:10px;
+    padding:22px;position:sticky;top:24px;
+  }
+  .form-card h2{
+    font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);
+    margin:0 0 16px;border-bottom:2px solid var(--accent-soft);padding-bottom:10px;
+  }
+  label{display:block;font-size:12.5px;font-weight:600;margin:14px 0 5px;color:#3a3f33;}
+  label .tel{font-weight:400;color:#8a8672;font-family:'Noto Sans Telugu',sans-serif;}
+  input, textarea{
+    width:100%;padding:9px 10px;border:1px solid #cfc9b3;border-radius:6px;
+    font-family:inherit;font-size:13.5px;background:#fbfaf5;color:var(--ink);
+  }
+  textarea{resize:vertical;min-height:56px;}
+  input:focus, textarea:focus{outline:none;border-color:var(--accent);background:#fff;}
+  .hint{font-size:11px;color:#9a9580;margin-top:4px;}
+  .locked-note{
+    margin-top:20px;padding:12px 14px;background:var(--panel);border-radius:8px;
+    font-size:12px;color:#5b5744;line-height:1.5;
+  }
+  .locked-note b{color:var(--seal);}
+  button.gen{
+    width:100%;margin-top:20px;padding:13px;border:none;border-radius:7px;
+    background:var(--seal);color:#fff;font-size:14px;font-weight:600;letter-spacing:.02em;
+    cursor:pointer;transition:background .15s;
+  }
+  button.gen:hover{background:var(--seal-dark);}
+  button.gen:disabled{background:#b7ada0;cursor:progress;}
+
+  /* ---- preview / document (mirrors original PDF) ---- */
+  .preview-shell{
+    background:#d9d4bd;border-radius:10px;padding:24px;display:flex;justify-content:center;
+  }
+  /* A4 at 96 CSS px/inch = 794 x 1123px, matching the original 595.2 x 841.92 pt page exactly */
+  #doc{
+    width:794px;min-height:1123px;
+    background:var(--paper);padding:52px 54px 40px;
+    box-shadow:0 8px 30px rgba(0,0,0,.18);
+    font-family:'Noto Sans Telugu','Inter',sans-serif;
+    color:var(--ink);
+  }
+  .doc-header{
+    display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;
+  }
+  .doc-title{font-size:17.5px;font-weight:700;padding-top:30px;}
+  .seal-box{
+    width:66px;height:66px;flex-shrink:0;border-radius:4px;
+  }
+  .doc-meta-right{
+    text-align:right;font-size:12.5px;line-height:1.9;margin-bottom:10px;
+  }
+  .doc-meta-right b{font-weight:700;}
+  .book-meta{font-size:13px;line-height:2.1;margin:10px 0 16px;}
+  .section-h{font-size:13.5px;font-weight:700;margin:6px 0 8px;}
+
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  th,td{border:0.1px solid #e5e5e5;padding:10px 9px;text-align:left;vertical-align:top;}
+  th{font-weight:700;background:#fff;}
+  th.sno,td.sno{width:6%;}
+  td.item{width:50%;}
+  td.desc{width:44%;}
+  .filled{color:var(--accent);font-weight:600;}
+
+  .doc-footer{
+    display:flex;justify-content:space-between;align-items:center;flex-direction:row;margin-top:20px;gap:16px;
+    padding:10px 0;
+    transform:translateY(-25px);
+  }
+
+  .qr-pair{display:flex;align-items:flex-start;gap:14px;}
+  .qr-block{text-align:center;font-size:10px;color:#333;}
+  .qr-block .cap{margin-top:50px;font-weight:600;font-size:5px;}
+  .qr-canvas{
+    display:inline-block;padding:6px;background:#fff;
+  }
+  .qr2-wrap{display:flex;align-items:center;gap:10px;}
+  .endorsement-label{font-size:11px;font-weight:600;color:#333;white-space:nowrap;}
+  .sig-block{text-align:left;font-size:12.5px;padding-left:12px;}
+  .sig-block .sig{font-weight:700;}
+  .sig-block .pg{margin-top:4px;font-size:11px;color:#555;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>Ashok Transport Form Generator</h1>
+    <p class="sub">Fill in this permit's details, then download the ready-to-print Ashok form.</p>
+
+    <div class="form-card">
+      <h2>Editable fields</h2>
+
+      <label>Book No <span class="tel">బుక్ నెం</span></label>
+      <input id="bookNo" value="OS/000006843">
+
+      <label>Book Expiry Date <span class="tel">గడువు తేదీ</span></label>
+      <input id="bookExpiry" value="23-09-2026">
+
+      <label>Transit Form Sl.No <span class="tel">ట్రాన్సిట్ ఫారం సీరియల్ నంబరు</span></label>
+      <input id="transitNo" value="OS/9000002061033">
+
+      <label>ADD QR Data <span class="tel">ADD QR డేటా</span></label>
+      <input id="addQrData" value="ADD-OS-9000002061033">
+      <div class="hint">Default data for the ADD QR code.</div>
+
+      <label>ENDORSEMENT QR Data <span class="tel">ENDORSEMENT QR డేటా</span></label>
+      <input id="endorseQrData" value="END-OS-9000002061033">
+      <div class="hint">Default data for the ENDORSEMENT QR code.</div>
+
+      <label>Lessee ID <span class="tel">కౌలుదారు ఐడీ</span></label>
+      <input id="lesseeId" value="OS1102">
+
+      <label>Lessee Name & Address <span class="tel">కౌలుదారు పేరు & చిరునామా</span></label>
+      <textarea id="lesseeName">SRI SAI LAKSHMI VENKATESWARA STONES</textarea>
+
+      <label>Quantity (Cbm / In Square FT)</label>
+      <input id="quantity" value="10">
+
+      <div class="locked-note">
+        <b>Fixed on this form:</b> District (KRNL / Kurnool), Mandal (Banaganapalle), Village (Palukuru), Mineral (Limestone‑Black, LSB), Unit (MT), Purpose (Mandal/Village Development), Endorsement (Yes), Page 19 of 24, and the blank dispatch/vehicle/destination rows — matching the original template.
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button class="gen" id="previewBtn" onclick="previewPdf()" style="flex:1;background:var(--accent);">Preview PDF</button>
+        <button class="gen" id="downloadBtn" onclick="downloadPdf()" style="flex:1;">Download PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="preview-shell">
+    <div id="doc">
+      <div class="doc-header">
+        <div class="doc-title">రవాణా ఫారం (TRANSPORT FORM ) - Other Book</div>
+        <div class="seal-box"><img src="seal.png" alt="Seal" style="width:100%;height:100%;object-fit:contain;"></div>
+      </div>
+
+      <div class="doc-meta-right">
+        జిల్లా కోడ్ (District Code) : <b>KRNL</b><br>
+        ట్రాన్సిట్ ఫారం Sl.No(Book Expiry Date): <b id="p_bookExpiry">23-09-2026</b>
+      </div>
+
+      <div class="book-meta">
+        <div style="transform:translateY(-10px)">బుక్ నెం (Book No) : <b id="p_bookNo">OS/000006843</b></div>
+        <div>ట్రాన్సిట్ ఫారం Sl.No (Transit Form Sl.No) : <b id="p_transitNo">OS/9000002061033</b></div>
+      </div>
+
+      <div class="section-h">1. మైనర్ ఖనిజ రవాణా వివరాలు (MINOR MINERAL TRANSPORTATION DETAILS)</div>
+
+      <table>
+        <tr><th class="sno">SNO</th><th>ITEMS</th><th>DESCRIPTION</th></tr>
+        <tr><td class="sno">1.</td><td class="item">Lessee ID (కౌలుదారు ఐడీ)</td><td class="desc filled" id="p_lesseeId">OS1102</td></tr>
+        <tr><td class="sno">2.</td><td class="item">Lessee Name & Address (కౌలుదారు పేరు & చిరునామా)</td><td class="desc filled" id="p_lesseeName">SRI SAI LAKSHMI VENKATESWARA STONES</td></tr>
+        <tr><td class="sno">3.</td><td class="item">Name of the Work</td><td class="desc">OTHER WORKS</td></tr>
+        <tr><td class="sno">4.</td><td class="item">District (జిల్లా)</td><td class="desc">KURNOOL</td></tr>
+        <tr><td class="sno">5.</td><td class="item">Mandal (మండలం)</td><td class="desc">BANAGANAPALLE</td></tr>
+        <tr><td class="sno">6.</td><td class="item">Village (గ్రామం)</td><td class="desc">PALUKURU</td></tr>
+        <tr><td class="sno">7.</td><td class="item">Mineral Name</td><td class="desc">Limestone-Black(LSB)</td></tr>
+        <tr><td class="sno">8.</td><td class="item">Unit</td><td class="desc">MT</td></tr>
+        <tr><td class="sno">9.</td><td class="item">Quantity in Cbm/In Square FT</td><td class="desc filled" id="p_quantity">10</td></tr>
+        <tr><td class="sno">10.</td><td class="item">Receiver Name & Address</td><td class="desc"></td></tr>
+        <tr><td class="sno">11.</td><td class="item">Place of Destination</td><td class="desc"></td></tr>
+        <tr><td class="sno">12.</td><td class="item">Distance of Destination in K.M</td><td class="desc"></td></tr>
+        <tr><td class="sno">13.</td><td class="item">Date & Time of Dispatch</td><td class="desc"></td></tr>
+        <tr><td class="sno">14.</td><td class="item">Date & Time to Reach Destination Place</td><td class="desc"></td></tr>
+        <tr><td class="sno">15.</td><td class="item">Vehicle No. (వాహనం నెం.)</td><td class="desc"></td></tr>
+        <tr><td class="sno">16.</td><td class="item">Purpose.</td><td class="desc">Mandal/Village Development</td></tr>
+        <tr><td class="sno">17.</td><td class="item">Endorsement</td><td class="desc">Yes</td></tr>
+      </table>
+      <div class="doc-footer">
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+          <div class="qr-canvas" id="qrcode1"></div>
+          <div class="cap">ADD</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+          <div class="qr-canvas" id="qr2wrap"></div>
+          <div class="endorsement-label">ENDORSEMENT</div>
+        </div>
+        <div class="sig-block" style="padding:4px 0;">
+          <div class="sig">Signature of Driver</div>
+          <div class="pg">Page 19 of 24</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ids = ["bookNo","bookExpiry","transitNo","lesseeId","lesseeName","quantity"];
+
+function makeQrDataUrl(text, size) {
+  var typeNumber = 0;
+  var errorCorrectionLevel = 'M';
+  var qr = qrcode(typeNumber, errorCorrectionLevel);
+  qr.addData(text);
+  qr.make();
+  var cellSize = Math.floor(size / (qr.getModuleCount() + 8));
+  var margin = Math.floor((size - cellSize * qr.getModuleCount()) / 2);
+  var canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  var ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#1a1a1a';
+  for (var row = 0; row < qr.getModuleCount(); row++) {
+    for (var col = 0; col < qr.getModuleCount(); col++) {
+      if (qr.isDark(row, col)) {
+        ctx.fillRect(margin + col * cellSize, margin + row * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+  return canvas.toDataURL('image/png');
+}
+
+/* QR placement constants (PDF points, A4 = 595.2 x 841.92 pt) */
+var QR_SIZE = 89.9;
+var QR_ADD_X = 35;
+var QR_ADD_Y = 685;
+var QR_END_X = 291;
+var QR_END_Y = 720;
+
+function addQrToPdf(pdf) {
+  var addData = document.getElementById("addQrData").value || "ADD-OS-9000002061033";
+  var endData = document.getElementById("endorseQrData").value || "END-OS-9000002061033";
+  var imgAdd = makeQrDataUrl(addData, 245);
+  var imgEnd = makeQrDataUrl(endData, 245);
+  pdf.addImage(imgAdd, 'PNG', QR_ADD_X, QR_ADD_Y, QR_SIZE, QR_SIZE);
+  pdf.addImage(imgEnd, 'PNG', QR_END_X, QR_END_Y, QR_SIZE, QR_SIZE);
+}
+
+function setQrVisible(visible) {
+  ['qrcode1', 'qr2wrap'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = visible ? '' : 'none';
+  });
+}
+
+function renderQrs(){
+  var addData = document.getElementById("addQrData").value || "ADD-OS-9000002061033";
+  var endData = document.getElementById("endorseQrData").value || "END-OS-9000002061033";
+  var imgSrcAdd = makeQrDataUrl(addData, 125);
+  var imgSrcEnd = makeQrDataUrl(endData, 125);
+
+  // ADD QR
+  var qr1 = document.getElementById("qrcode1");
+  qr1.innerHTML = "";
+  var img1 = document.createElement("img");
+  img1.src = imgSrcAdd;
+  img1.style.width = "125px";
+  img1.style.height = "125px";
+  qr1.appendChild(img1);
+
+  // ENDORSEMENT QR
+  var qr2 = document.getElementById("qr2wrap");
+  qr2.innerHTML = "";
+  var img2 = document.createElement("img");
+  img2.src = imgSrcEnd;
+  img2.style.width = "125px";
+  img2.style.height = "125px";
+  qr2.appendChild(img2);
+}
+
+function syncPreview(){
+  document.getElementById("p_bookNo").textContent = document.getElementById("bookNo").value;
+  document.getElementById("p_bookExpiry").textContent = document.getElementById("bookExpiry").value;
+  document.getElementById("p_transitNo").textContent = document.getElementById("transitNo").value;
+  document.getElementById("p_lesseeId").textContent = document.getElementById("lesseeId").value;
+  document.getElementById("p_lesseeName").textContent = document.getElementById("lesseeName").value;
+  document.getElementById("p_quantity").textContent = document.getElementById("quantity").value;
+}
+
+ids.forEach(id=>{
+  document.getElementById(id).addEventListener("input", ()=>{
+    syncPreview();
+  });
+});
+
+document.getElementById("addQrData").addEventListener("input", renderQrs);
+document.getElementById("endorseQrData").addEventListener("input", renderQrs);
+
+document.addEventListener("DOMContentLoaded", function(){
+  renderQrs();
+  syncPreview();
+});
+
+function previewPdf(){
+  var previewWindow = window.open("", "_blank");
+  if(!previewWindow){
+    alert("Pop-up blocked! Please allow pop-ups for this site.");
+    return;
+  }
+  previewWindow.document.write("<html><head><title>Loading PDF...</title></head><body style='display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f0f0f0;'><p style='font-family:sans-serif;color:#555;'>Generating PDF, please wait...</p></body></html>");
+
+  var btn = document.getElementById("previewBtn");
+  btn.disabled = true;
+  btn.textContent = "Generating...";
+
+  var doc = document.getElementById("doc");
+  setQrVisible(false);
+  html2canvas(doc, { scale: 3, backgroundColor: "#ffffff" }).then(function(canvas){
+    setQrVisible(true);
+    var imgData = canvas.toDataURL("image/png");
+    var jsPDF = window.jspdf.jsPDF;
+    var pageW = 595.2;
+    var pageH = 841.92;
+    var pdf = new jsPDF({ unit: "pt", format: [pageW, pageH] });
+    pdf.addImage(imgData, "PNG", 0, 0, pageW, pageH);
+    addQrToPdf(pdf);
+    var blob = pdf.output("blob");
+    var url = URL.createObjectURL(blob);
+    previewWindow.location.href = url;
+    btn.disabled = false;
+    btn.textContent = "Preview PDF";
+  }).catch(function(err){
+    setQrVisible(true);
+    previewWindow.close();
+    alert("Could not generate preview: " + err.message);
+    btn.disabled = false;
+    btn.textContent = "Preview PDF";
+  });
+}
+
+async function downloadPdf(){
+  const btn = document.getElementById("downloadBtn");
+  btn.disabled = true;
+  btn.textContent = "Generating...";
+  try{
+    const doc = document.getElementById("doc");
+    setQrVisible(false);
+    const canvas = await html2canvas(doc, { scale: 3, backgroundColor: "#ffffff" });
+    setQrVisible(true);
+    const imgData = canvas.toDataURL("image/png");
+    const { jsPDF } = window.jspdf;
+    const pageW = 595.2;
+    const pageH = 841.92;
+    const pdf = new jsPDF({ unit: "pt", format: [pageW, pageH] });
+    pdf.addImage(imgData, "PNG", 0, 0, pageW, pageH);
+    addQrToPdf(pdf);
+    const transitNo = document.getElementById("transitNo").value.replace(/[^a-zA-Z0-9]/g,"_") || "form";
+    pdf.save(`AshokTransportForm_${transitNo}.pdf`);
+  } catch(err){
+    setQrVisible(true);
+    alert("Could not generate PDF: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Download PDF";
+  }
+}
+</script>
+</body>
+</html>
