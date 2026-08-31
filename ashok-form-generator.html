@@ -102,20 +102,47 @@
   .filled{color:var(--accent);font-weight:600;}
 
   .doc-footer{
-    display:flex;justify-content:space-between;align-items:center;flex-direction:row;margin-top:20px;gap:16px;
-    padding:10px 0;
-    transform:translateY(-25px);
+    position:relative;
+    height:200px;
+    margin-top:20px;
   }
 
-  .qr-pair{display:flex;align-items:flex-start;gap:14px;}
-  .qr-block{text-align:center;font-size:10px;color:#333;}
-  .qr-block .cap{margin-top:50px;font-weight:600;font-size:5px;}
   .qr-canvas{
-    display:inline-block;padding:6px;background:#fff;
+    position:absolute;
+    padding:4px;
+    background:#fff;
   }
-  .qr2-wrap{display:flex;align-items:center;gap:10px;}
-  .endorsement-label{font-size:11px;font-weight:600;color:#333;white-space:nowrap;}
-  .sig-block{text-align:left;font-size:12.5px;padding-left:12px;}
+  #qrcode1{
+    left:35px;
+    top:0;
+  }
+  #qr2wrap{
+    left:291px;
+    top:35px;
+  }
+  .qr-label-add{
+    position:absolute;
+    left:50px;
+    top:105px;
+    font-size:9px;
+    font-weight:600;
+    color:#333;
+  }
+  .qr-label-endorsment{
+    position:absolute;
+    left:306px;
+    top:140px;
+    font-size:9px;
+    font-weight:600;
+    color:#333;
+  }
+  .sig-block{
+    position:absolute;
+    right:10px;
+    top:0;
+    text-align:left;
+    font-size:12.5px;
+  }
   .sig-block .sig{font-weight:700;}
   .sig-block .pg{margin-top:4px;font-size:11px;color:#555;}
 </style>
@@ -206,15 +233,11 @@
         <tr><td class="sno">17.</td><td class="item">Endorsement</td><td class="desc">Yes</td></tr>
       </table>
       <div class="doc-footer">
-        <div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
-          <div class="qr-canvas" id="qrcode1"></div>
-          <div class="cap">ADD</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
-          <div class="qr-canvas" id="qr2wrap"></div>
-          <div class="endorsement-label">ENDORSEMENT</div>
-        </div>
-        <div class="sig-block" style="padding:4px 0;">
+        <div class="qr-canvas" id="qrcode1"></div>
+        <div class="qr-label-add">ADD</div>
+        <div class="qr-canvas" id="qr2wrap"></div>
+        <div class="qr-label-endorsment">ENDORSEMENT</div>
+        <div class="sig-block">
           <div class="sig">Signature of Driver</div>
           <div class="pg">Page 19 of 24</div>
         </div>
@@ -277,16 +300,18 @@ function setQrVisible(visible) {
 function renderQrs(){
   var addData = document.getElementById("addQrData").value || "ADD-OS-9000002061033";
   var endData = document.getElementById("endorseQrData").value || "END-OS-9000002061033";
-  var imgSrcAdd = makeQrDataUrl(addData, 125);
-  var imgSrcEnd = makeQrDataUrl(endData, 125);
+  // QR size matches PDF: 89.9pt scaled to HTML (89.9 * 1.334 = 120px)
+  var qrHtmlSize = 120;
+  var imgSrcAdd = makeQrDataUrl(addData, 245);
+  var imgSrcEnd = makeQrDataUrl(endData, 245);
 
   // ADD QR
   var qr1 = document.getElementById("qrcode1");
   qr1.innerHTML = "";
   var img1 = document.createElement("img");
   img1.src = imgSrcAdd;
-  img1.style.width = "125px";
-  img1.style.height = "125px";
+  img1.style.width = qrHtmlSize + "px";
+  img1.style.height = qrHtmlSize + "px";
   qr1.appendChild(img1);
 
   // ENDORSEMENT QR
@@ -294,8 +319,8 @@ function renderQrs(){
   qr2.innerHTML = "";
   var img2 = document.createElement("img");
   img2.src = imgSrcEnd;
-  img2.style.width = "125px";
-  img2.style.height = "125px";
+  img2.style.width = qrHtmlSize + "px";
+  img2.style.height = qrHtmlSize + "px";
   qr2.appendChild(img2);
 }
 
