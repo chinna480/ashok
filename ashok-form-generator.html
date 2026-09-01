@@ -239,7 +239,7 @@ const ids = ["bookNo","bookExpiry","transitNo","lesseeId","lesseeName","quantity
 
 function makeQrDataUrl(text, size) {
   var typeNumber = 0;
-  var errorCorrectionLevel = 'M';
+  var errorCorrectionLevel = 'H'; // highest redundancy -> more scan-tolerant
   var qr = qrcode(typeNumber, errorCorrectionLevel);
   qr.addData(text);
   qr.make();
@@ -249,6 +249,7 @@ function makeQrDataUrl(text, size) {
   canvas.width = size;
   canvas.height = size;
   var ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, size, size);
   ctx.fillStyle = '#1a1a1a';
@@ -262,14 +263,24 @@ function makeQrDataUrl(text, size) {
   return canvas.toDataURL('image/png');
 }
 
+// Root cause of "scans fine on screen but not in the PDF":
+// the QR canvas was generated at 245px then squeezed to 100px via CSS.
+// html2canvas re-samples that shrunk image while screenshotting, which
+// blurs the sharp black/white module edges just enough that most
+// scanners fail to binarize it. Fix: generate the QR at a large,
+// crisp resolution and keep the ORIGINAL data URL around so the PDF
+// step can paste it in directly, bypassing html2canvas entirely.
+window._qrHiResDataUrl = null;
+
 function renderQrs() {
   var raw = document.getElementById('transitNo').value.replace(/\//g, '-');
-  var imgSrc = makeQrDataUrl(raw, 245);
+  var imgSrc = makeQrDataUrl(raw, 600); // large + crisp source, used for the actual PDF
+  window._qrHiResDataUrl = imgSrc;
   ['qrcode1', 'qr2'].forEach(function(id) {
     var el = document.getElementById(id);
     el.innerHTML = '';
     var img = document.createElement('img');
-    img.src = imgSrc;
+    img.src = imgSrc; // still fine for the on-screen preview (screen doesn't need scan fidelity)
     el.appendChild(img);
   });
 }
@@ -302,13 +313,50 @@ async function downloadPdf(){
   btn.textContent = "Generating...";
   try{
     const doc = document.getElementById("doc");
+    const qrImgs = doc.querySelectorAll('.qr-box img');
+    const docRect = doc.getBoundingClientRect();
+
+    // Record each QR's on-page position/size, then hide it so
+    // html2canvas never touches (and blurs) the QR pixels at all.
+    const qrPositions = Array.from(qrImgs).map(img => {
+      const r = img.getBoundingClientRect();
+      img.style.visibility = 'hidden';
+      return {
+        x: r.left - docRect.left,
+        y: r.top - docRect.top,
+        w: r.width,
+        h: r.height
+      };
+    });
+
     const canvas = await html2canvas(doc, { scale: 3, backgroundColor: "#ffffff" });
     const imgData = canvas.toDataURL("image/png");
+
+    // restore the on-screen preview
+    qrImgs.forEach(img => img.style.visibility = 'visible');
+
     const { jsPDF } = window.jspdf;
     const pageW = 595.2;
     const pageH = 841.92;
+    const pxToPt = pageW / docRect.width; // #doc is 794 css px == 595.2pt page width
+
     const pdf = new jsPDF({ unit: "pt", format: [pageW, pageH] });
     pdf.addImage(imgData, "PNG", 0, 0, pageW, pageH);
+
+    // Paste the ORIGINAL crisp, high-res QR image straight into the PDF
+    // at the exact same spot the placeholder occupied — no resampling,
+    // no blur, fully scannable.
+    qrPositions.forEach(pos => {
+      pdf.addImage(
+        window._qrHiResDataUrl,
+        "PNG",
+        pos.x * pxToPt,
+        pos.y * pxToPt,
+        pos.w * pxToPt,
+        pos.h * pxToPt
+      );
+    });
+
     const transitNo = document.getElementById("transitNo").value.replace(/[^a-zA-Z0-9]/g,"_") || "form";
     pdf.save(`AshokTransportForm_${transitNo}.pdf`);
   } catch(err){
