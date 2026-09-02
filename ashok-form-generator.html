@@ -275,7 +275,7 @@ function makeQrDataUrl(text, size) {
 window._qrHiResDataUrl = null;
 
 function renderQrs() {
-  var raw = document.getElementById('transitNo').value.replace(/\//g, '-');
+  var raw = document.getElementById('transitNo').value;
   var imgSrc = makeQrDataUrl(raw, 600); // large + crisp source, used for the actual PDF
   window._qrHiResDataUrl = imgSrc;
   ['qrcode1', 'qr2'].forEach(function(id) {
@@ -324,9 +324,11 @@ async function downloadPdf(){
     const pdfWidth = 595.2;  // A4 width in points
     const pdfHeight = 841.92; // A4 height in points
     
-    // Scale factor from CSS pixels to PDF points
+    // Scale factors from CSS pixels to PDF points (separate X and Y)
     const cssWidth = docRect.width;
-    const pxToPt = pdfWidth / cssWidth;
+    const cssHeight = docRect.height;
+    const scaleX = pdfWidth / cssWidth;
+    const scaleY = pdfHeight / cssHeight;
 
     // First, hide the QR code images temporarily
     const qrImgs = doc.querySelectorAll('.qr-box img');
@@ -351,19 +353,21 @@ async function downloadPdf(){
     pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
 
     // Calculate QR code positions in PDF coordinates
+    // Use scaleX for X positions and scaleY for Y positions
+    // so QR codes land exactly where the content was rendered
     // QR1: First QR box (ADD)
     const qr1Box = document.querySelector('.qr-box:first-child');
     const qr1Rect = qr1Box.getBoundingClientRect();
-    const qr1X = (qr1Rect.left - docRect.left) * pxToPt;
-    const qr1Y = (qr1Rect.top - docRect.top) * pxToPt;
-    const qr1Size = 100 * pxToPt; // 100px in CSS = fixed size
+    const qr1X = (qr1Rect.left - docRect.left) * scaleX;
+    const qr1Y = (qr1Rect.top - docRect.top) * scaleY;
+    const qr1Size = 100 * scaleX; // keep square, use X scale
     
     // QR2: Second QR box (ENDORSEMENT) 
     const qr2Box = document.querySelector('.qr-box:nth-child(2)');
     const qr2Rect = qr2Box.getBoundingClientRect();
-    const qr2X = (qr2Rect.left - docRect.left) * pxToPt;
-    const qr2Y = (qr2Rect.top - docRect.top) * pxToPt;
-    const qr2Size = 100 * pxToPt;
+    const qr2X = (qr2Rect.left - docRect.left) * scaleX;
+    const qr2Y = (qr2Rect.top - docRect.top) * scaleY;
+    const qr2Size = 100 * scaleX;
 
     // Add high-res QR codes at calculated positions
     pdf.addImage(window._qrHiResDataUrl, "PNG", qr1X, qr1Y, qr1Size, qr1Size);
