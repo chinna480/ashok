@@ -103,7 +103,7 @@
 
   .doc-footer{
     position:relative;
-    height:200px;
+    min-height:200px;
     margin-top:20px;
   }
 
@@ -112,17 +112,20 @@
     align-items:flex-start;
     gap:16px;
     margin-bottom:10px;
+    flex-wrap: nowrap;
   }
   .qr-box{
     display:flex;
     align-items:center;
     gap:6px;
+    flex-shrink: 0;
   }
   .qr-box img{
     width:100px;
     height:100px;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
+    display: block;
   }
   .qr-label{
     font-size:13px;
@@ -130,11 +133,10 @@
     color:#333;
   }
   .sig-block{
-    position:absolute;
-    right:10px;
-    top:0;
+    margin-left: auto;
     text-align:left;
     font-size:12.5px;
+    padding-top: 30px;
   }
   .sig-block .sig{font-weight:700;}
   .sig-block .pg{margin-top:4px;font-size:11px;color:#555;}
@@ -220,11 +222,11 @@
             <div id="qrcode1"></div>
             <div class="qr-label" style="margin-top:58px;">ADD</div>
           </div>
-          <div class="qr-box" style="margin:0 0 0 160px;">
+          <div class="qr-box" style="margin-left:80px;">
             <div id="qr2"></div>
             <div class="qr-label" style="margin-top:10px;">ENDORSEMENT</div>
           </div>
-          <div class="sig-block" style="position:absolute;right:10px;top:50px;">
+          <div class="sig-block">
             <div class="sig">Signature of Driver</div>
             <div class="pg">Page 19 of 24</div>
           </div>
@@ -313,49 +315,59 @@ async function downloadPdf(){
   btn.textContent = "Generating...";
   try{
     const doc = document.getElementById("doc");
-    const qrImgs = doc.querySelectorAll('.qr-box img');
     const docRect = doc.getBoundingClientRect();
 
-    // Record each QR's on-page position/size, then hide it so
-    // html2canvas never touches (and blurs) the QR pixels at all.
-    const qrPositions = Array.from(qrImgs).map(img => {
-      const r = img.getBoundingClientRect();
-      img.style.visibility = 'hidden';
-      return {
-        x: r.left - docRect.left,
-        y: r.top - docRect.top,
-        w: r.width,
-        h: r.height
-      };
+    // Use a fixed scale factor for consistent PDF output
+    const pdfScale = 3;
+    
+    // Calculate PDF dimensions based on A4 size
+    const pdfWidth = 595.2;  // A4 width in points
+    const pdfHeight = 841.92; // A4 height in points
+    
+    // Scale factor from CSS pixels to PDF points
+    const cssWidth = docRect.width;
+    const pxToPt = pdfWidth / cssWidth;
+
+    // First, hide the QR code images temporarily
+    const qrImgs = doc.querySelectorAll('.qr-box img');
+    qrImgs.forEach(img => img.style.visibility = 'hidden');
+
+    // Generate the main document canvas without QR codes
+    const canvas = await html2canvas(doc, { 
+      scale: pdfScale, 
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      logging: false
     });
-
-    const canvas = await html2canvas(doc, { scale: 3, backgroundColor: "#ffffff" });
-    const imgData = canvas.toDataURL("image/png");
-
-    // restore the on-screen preview
+    
+    // Restore QR code images
     qrImgs.forEach(img => img.style.visibility = 'visible');
 
     const { jsPDF } = window.jspdf;
-    const pageW = 595.2;
-    const pageH = 841.92;
-    const pxToPt = pageW / docRect.width; // #doc is 794 css px == 595.2pt page width
+    const pdf = new jsPDF({ unit: "pt", format: [pdfWidth, pdfHeight] });
+    
+    // Add the main document image
+    const imgData = canvas.toDataURL("image/png");
+    pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
 
-    const pdf = new jsPDF({ unit: "pt", format: [pageW, pageH] });
-    pdf.addImage(imgData, "PNG", 0, 0, pageW, pageH);
+    // Calculate QR code positions in PDF coordinates
+    // QR1: First QR box (ADD)
+    const qr1Box = document.querySelector('.qr-box:first-child');
+    const qr1Rect = qr1Box.getBoundingClientRect();
+    const qr1X = (qr1Rect.left - docRect.left) * pxToPt;
+    const qr1Y = (qr1Rect.top - docRect.top) * pxToPt;
+    const qr1Size = 100 * pxToPt; // 100px in CSS = fixed size
+    
+    // QR2: Second QR box (ENDORSEMENT) 
+    const qr2Box = document.querySelector('.qr-box:nth-child(2)');
+    const qr2Rect = qr2Box.getBoundingClientRect();
+    const qr2X = (qr2Rect.left - docRect.left) * pxToPt;
+    const qr2Y = (qr2Rect.top - docRect.top) * pxToPt;
+    const qr2Size = 100 * pxToPt;
 
-    // Paste the ORIGINAL crisp, high-res QR image straight into the PDF
-    // at the exact same spot the placeholder occupied — no resampling,
-    // no blur, fully scannable.
-    qrPositions.forEach(pos => {
-      pdf.addImage(
-        window._qrHiResDataUrl,
-        "PNG",
-        pos.x * pxToPt,
-        pos.y * pxToPt,
-        pos.w * pxToPt,
-        pos.h * pxToPt
-      );
-    });
+    // Add high-res QR codes at calculated positions
+    pdf.addImage(window._qrHiResDataUrl, "PNG", qr1X, qr1Y, qr1Size, qr1Size);
+    pdf.addImage(window._qrHiResDataUrl, "PNG", qr2X, qr2Y, qr2Size, qr2Size);
 
     const transitNo = document.getElementById("transitNo").value.replace(/[^a-zA-Z0-9]/g,"_") || "form";
     pdf.save(`AshokTransportForm_${transitNo}.pdf`);
