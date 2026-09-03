@@ -166,11 +166,14 @@
       <label>Lessee Name & Address <span class="tel">కౌలుదారు పేరు & చిరునామా</span></label>
       <textarea id="lesseeName">SRI SAI LAKSHMI VENKATESWARA STONES</textarea>
 
+      <label>Mineral Name <span class="tel">ఖనిజం పేరు</span></label>
+      <input id="mineral" value="Limestone-Black(LSB)">
+
       <label>Quantity (Cbm / In Square FT)</label>
       <input id="quantity" value="10">
 
       <div class="locked-note">
-        <b>Fixed on this form:</b> District (KRNL / Kurnool), Mandal (Banaganapalle), Village (Palukuru), Mineral (Limestone‑Black, LSB), Unit (MT), Purpose (Mandal/Village Development), Endorsement (Yes), Page 19 of 24, and the blank dispatch/vehicle/destination rows — matching the original template.
+        <b>Fixed on this form:</b> District (KRNL / Kurnool), Mandal (Banaganapalle), Village (Palukuru), Unit (MT), Purpose (Mandal/Village Development), Endorsement (Yes), Page 19 of 24, and the blank dispatch/vehicle/destination rows — matching the original template.
       </div>
 
       <button class="gen" id="downloadBtn" onclick="downloadPdf()">Download PDF</button>
@@ -204,7 +207,7 @@
         <tr><td class="sno">4.</td><td class="item">District (జిల్లా)</td><td class="desc">KURNOOL</td></tr>
         <tr><td class="sno">5.</td><td class="item">Mandal (మండలం)</td><td class="desc">BANAGANAPALLE</td></tr>
         <tr><td class="sno">6.</td><td class="item">Village (గ్రామం)</td><td class="desc">PALUKURU</td></tr>
-        <tr><td class="sno">7.</td><td class="item">Mineral Name</td><td class="desc">Limestone-Black(LSB)</td></tr>
+        <tr><td class="sno">7.</td><td class="item">Mineral Name</td><td class="desc filled" id="p_mineral">Limestone-Black(LSB)</td></tr>
         <tr><td class="sno">8.</td><td class="item">Unit</td><td class="desc">MT</td></tr>
         <tr><td class="sno">9.</td><td class="item">Quantity in Cbm/In Square FT</td><td class="desc filled" id="p_quantity">10</td></tr>
         <tr><td class="sno">10.</td><td class="item">Receiver Name & Address</td><td class="desc"></td></tr>
@@ -237,7 +240,7 @@
 </div>
 
 <script>
-const ids = ["bookNo","bookExpiry","transitNo","lesseeId","lesseeName","quantity"];
+const ids = ["bookNo","bookExpiry","transitNo","lesseeId","lesseeName","mineral","quantity"];
 
 function makeQrDataUrl(text, size) {
   var typeNumber = 0;
@@ -294,6 +297,7 @@ function syncPreview(){
   document.getElementById("p_lesseeId").textContent = document.getElementById("lesseeId").value;
   document.getElementById("p_lesseeName").textContent = document.getElementById("lesseeName").value;
   document.getElementById("p_quantity").textContent = document.getElementById("quantity").value;
+  document.getElementById("p_mineral").textContent = document.getElementById("mineral").value;
 }
 
 ids.forEach(id=>{
